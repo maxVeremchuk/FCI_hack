@@ -198,7 +198,8 @@ def now_iso() -> str:
 
 
 def cache_write_json(name: str, data: Any) -> None:
-    (CACHE_DIR / name).write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    # (CACHE_DIR / name).write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    pass
 
 
 def cache_read_json(name: str, default: Any) -> Any:
