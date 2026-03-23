@@ -227,16 +227,18 @@ def normalize_observed_at(value: str | None) -> str:
 
 
 def log_run(conn: sqlite3.Connection, run_id: int, level: str, message: str) -> None:
-    conn.execute("INSERT INTO logs (run_id, created_at, level, message) VALUES (?, ?, ?, ?)", (run_id, now_iso(), level, message))
-    conn.commit()
+    # conn.execute("INSERT INTO logs (run_id, created_at, level, message) VALUES (?, ?, ?, ?)", (run_id, now_iso(), level, message))
+    # conn.commit()
+    pass
 
 
 def add_alert(conn: sqlite3.Connection, severity: str, category: str, title: str, message: str, source_url: str | None = None, metric_key: str | None = None, region_scope: str | None = None, region_id: str | None = None, is_demo: int = 0) -> None:
-    conn.execute(
-        "INSERT INTO alerts (created_at, severity, category, title, message, source_url, metric_key, region_scope, region_id, is_demo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (now_iso(), severity, category, title, message, source_url, metric_key, region_scope, region_id, is_demo),
-    )
-    conn.commit()
+    # conn.execute(
+    #     "INSERT INTO alerts (created_at, severity, category, title, message, source_url, metric_key, region_scope, region_id, is_demo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    #     (now_iso(), severity, category, title, message, source_url, metric_key, region_scope, region_id, is_demo),
+    # )
+    # conn.commit()
+    pass
 
 
 def add_metric_snapshot(conn: sqlite3.Connection, metric_key: str, value: float, unit: str, source_urls: list[str], metadata: dict[str, Any] | None = None, region_scope: str = "whole", region_id: str | None = None, observed_at: str | None = None) -> None:
@@ -248,11 +250,11 @@ def add_metric_snapshot(conn: sqlite3.Connection, metric_key: str, value: float,
     if recent:
         if str(recent["observed_at"])[:10] == observed[:10] and abs(float(recent["value"]) - float(value)) < 1e-9:
             return
-    conn.execute(
-        "INSERT INTO metric_snapshots (metric_key, region_scope, region_id, observed_at, value, unit, source_urls_json, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (metric_key, region_scope, region_id, observed, float(value), unit, json.dumps(sorted(set(source_urls))), json.dumps(metadata or {})),
-    )
-    conn.commit()
+    # conn.execute(
+    #     "INSERT INTO metric_snapshots (metric_key, region_scope, region_id, observed_at, value, unit, source_urls_json, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    #     (metric_key, region_scope, region_id, observed, float(value), unit, json.dumps(sorted(set(source_urls))), json.dumps(metadata or {})),
+    # )
+    # conn.commit()
 
 
 def export_region_metrics_snapshot(conn: sqlite3.Connection) -> None:
@@ -1545,14 +1547,14 @@ def refresh_source_previews(conn: sqlite3.Connection, run_id: int) -> None:
             after = len(payload["metrics"])
             if before > after:
                 payload.setdefault("caveats", []).append(f"Dropped {before - after} metric(s) not scoped to Waterloo Region.")
-            conn.execute(
-                "UPDATE sources SET last_checked = ?, last_success = ?, status = ?, preview_text = ? WHERE id = ?",
-                (now_iso(), now_iso() if fetched.get("ok") else None, status, preview, src["id"]),
-            )
-            conn.execute(
-                "INSERT INTO llm_extractions (run_id, source_id, created_at, status, source_name, source_url, extracted_json, raw_excerpt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (run_id, src["id"], now_iso(), status, src["name"], src["source_url"], json.dumps(payload), raw_ex[:12000]),
-            )
+            # conn.execute(
+            #     "UPDATE sources SET last_checked = ?, last_success = ?, status = ?, preview_text = ? WHERE id = ?",
+            #     (now_iso(), now_iso() if fetched.get("ok") else None, status, preview, src["id"]),
+            # )
+            # conn.execute(
+            #     "INSERT INTO llm_extractions (run_id, source_id, created_at, status, source_name, source_url, extracted_json, raw_excerpt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            #     (run_id, src["id"], now_iso(), status, src["name"], src["source_url"], json.dumps(payload), raw_ex[:12000]),
+            # )
             for item in payload.get("metrics") or []:
                 key = item.get("metric_key")
                 if not key:
@@ -1574,14 +1576,15 @@ def refresh_source_previews(conn: sqlite3.Connection, run_id: int) -> None:
                     region_scope="whole",
                 )
         else:
-            conn.execute(
-                "UPDATE sources SET last_checked = ?, last_success = ?, status = ?, preview_text = ? WHERE id = ?",
-                (now_iso(), now_iso(), "ok" if fetched.get("ok") else "warning", preview, src["id"]),
-            )
-            conn.execute(
-                "INSERT INTO llm_extractions (run_id, source_id, created_at, status, source_name, source_url, extracted_json, raw_excerpt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (run_id, src["id"], now_iso(), "preview", src["name"], src["source_url"], json.dumps({"summary": preview[:200], "metrics": []}), preview[:1200]),
-            )
+            # conn.execute(
+            #     "UPDATE sources SET last_checked = ?, last_success = ?, status = ?, preview_text = ? WHERE id = ?",
+            #     (now_iso(), now_iso(), "ok" if fetched.get("ok") else "warning", preview, src["id"]),
+            # )
+            # conn.execute(
+            #     "INSERT INTO llm_extractions (run_id, source_id, created_at, status, source_name, source_url, extracted_json, raw_excerpt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            #     (run_id, src["id"], now_iso(), "preview", src["name"], src["source_url"], json.dumps({"summary": preview[:200], "metrics": []}), preview[:1200]),
+            # )
+            pass
     conn.commit()
 
 
@@ -2242,13 +2245,13 @@ def run_pipeline(run_id: int) -> None:
             export_region_metrics_snapshot(conn)
             export_sources_registry(conn)
             add_alert(conn, "info", "pipeline", "Data refresh completed", "The scorecard data refresh completed successfully.")
-            conn.execute("UPDATE runs SET completed_at = ?, status = ?, summary_json = ? WHERE id = ?", (now_iso(), "completed", json.dumps({"status": "ok"}), run_id))
-            conn.commit()
+            # conn.execute("UPDATE runs SET completed_at = ?, status = ?, summary_json = ? WHERE id = ?", (now_iso(), "completed", json.dumps({"status": "ok"}), run_id))
+            # conn.commit()
         except Exception as exc:
             log_run(conn, run_id, "error", f"Pipeline failed: {exc}")
             add_alert(conn, "error", "pipeline", "Data refresh failed", str(exc))
-            conn.execute("UPDATE runs SET completed_at = ?, status = ?, summary_json = ? WHERE id = ?", (now_iso(), "failed", json.dumps({"error": str(exc)}), run_id))
-            conn.commit()
+            # conn.execute("UPDATE runs SET completed_at = ?, status = ?, summary_json = ? WHERE id = ?", (now_iso(), "failed", json.dumps({"error": str(exc)}), run_id))
+            # conn.commit()
         finally:
             CURRENT_RUN_ID = run_id
 
@@ -2256,10 +2259,10 @@ def run_pipeline(run_id: int) -> None:
 def start_pipeline_async() -> int:
     global CURRENT_THREAD, CURRENT_RUN_ID
     with RUN_LOCK:
-        with closing(get_db()) as conn:
-            row = conn.execute("INSERT INTO runs (started_at, status, summary_json) VALUES (?, ?, ?)", (now_iso(), "running", json.dumps({"status": "running"}))).lastrowid
-            conn.commit()
-            run_id = int(row)
+        # with closing(get_db()) as conn:
+        #     row = conn.execute("INSERT INTO runs (started_at, status, summary_json) VALUES (?, ?, ?)", (now_iso(), "running", json.dumps({"status": "running"}))).lastrowid
+        #     conn.commit()
+        #     run_id = int(row)
         CURRENT_RUN_ID = run_id
         t = threading.Thread(target=run_pipeline, args=(run_id,), daemon=True)
         CURRENT_THREAD = t
@@ -2348,9 +2351,9 @@ def api_formulas():
 def api_update_formula(formula_key: str):
     data = request.get_json(force=True)
     expr = str(data.get("expression", "")).strip()
-    with closing(get_db()) as conn:
-        conn.execute("UPDATE formulas SET expression = ? WHERE formula_key = ?", (expr, formula_key))
-        conn.commit()
+    # with closing(get_db()) as conn:
+    #     conn.execute("UPDATE formulas SET expression = ? WHERE formula_key = ?", (expr, formula_key))
+    #     conn.commit()
     if (CACHE_DIR / "grid_cells_v10.json").exists():
         (CACHE_DIR / "grid_cells_v10.json").unlink()
     return jsonify({"ok": True})
@@ -2359,18 +2362,18 @@ def api_update_formula(formula_key: str):
 @app.route("/api/weights/metric/<metric_key>", methods=["PATCH"])
 def api_update_metric_weight(metric_key: str):
     data = request.get_json(force=True)
-    with closing(get_db()) as conn:
-        conn.execute("UPDATE metric_defs SET weight = ? WHERE metric_key = ?", (float(data.get("weight", 1.0)), metric_key))
-        conn.commit()
+    # with closing(get_db()) as conn:
+    #     conn.execute("UPDATE metric_defs SET weight = ? WHERE metric_key = ?", (float(data.get("weight", 1.0)), metric_key))
+    #     conn.commit()
     return jsonify({"ok": True})
 
 
 @app.route("/api/weights/sector/<sector>", methods=["PATCH"])
 def api_update_sector_weight(sector: str):
     data = request.get_json(force=True)
-    with closing(get_db()) as conn:
-        conn.execute("UPDATE sector_weights SET weight = ? WHERE sector = ?", (float(data.get("weight", 1.0)), sector))
-        conn.commit()
+    # with closing(get_db()) as conn:
+    #     conn.execute("UPDATE sector_weights SET weight = ? WHERE sector = ?", (float(data.get("weight", 1.0)), sector))
+    #     conn.commit()
     return jsonify({"ok": True})
 
 
@@ -2383,21 +2386,21 @@ def api_sources():
 @app.route("/api/sources", methods=["POST"])
 def api_add_source():
     data = request.get_json(force=True)
-    with closing(get_db()) as conn:
-        conn.execute(
-            "INSERT INTO sources (name, sector, source_url, access_method, parser_type, update_frequency, use_llm, active, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 'manual')",
-            (
-                data.get("name", "New source"),
-                data.get("sector", "Placemaking"),
-                data.get("source_url", ""),
-                data.get("access_method", "html"),
-                data.get("parser_type", "html"),
-                data.get("update_frequency", "weekly"),
-                int(data.get("use_llm", 0)),
-                data.get("notes", ""),
-            ),
-        )
-        conn.commit()
+    # with closing(get_db()) as conn:
+    #     conn.execute(
+    #         "INSERT INTO sources (name, sector, source_url, access_method, parser_type, update_frequency, use_llm, active, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 'manual')",
+    #         (
+    #             data.get("name", "New source"),
+    #             data.get("sector", "Placemaking"),
+    #             data.get("source_url", ""),
+    #             data.get("access_method", "html"),
+    #             data.get("parser_type", "html"),
+    #             data.get("update_frequency", "weekly"),
+    #             int(data.get("use_llm", 0)),
+    #             data.get("notes", ""),
+    #         ),
+    #     )
+    #     conn.commit()
     return jsonify({"ok": True})
 
 
@@ -2411,17 +2414,19 @@ def api_patch_source(source_id: int):
             fields.append(f"{key} = ?")
             values.append(data[key])
     if fields:
-        with closing(get_db()) as conn:
-            conn.execute(f"UPDATE sources SET {', '.join(fields)} WHERE id = ?", (*values, source_id))
-            conn.commit()
+        # with closing(get_db()) as conn:
+        #     conn.execute(f"UPDATE sources SET {', '.join(fields)} WHERE id = ?", (*values, source_id))
+        #     conn.commit()
+        pass
     return jsonify({"ok": True})
 
 
 @app.route("/api/sources/<int:source_id>", methods=["DELETE"])
 def api_delete_source(source_id: int):
-    with closing(get_db()) as conn:
-        conn.execute("DELETE FROM sources WHERE id = ?", (source_id,))
-        conn.commit()
+    # with closing(get_db()) as conn:
+    #     conn.execute("DELETE FROM sources WHERE id = ?", (source_id,))
+    #     conn.commit()
+    pass
     return jsonify({"ok": True})
 
 
@@ -2706,12 +2711,12 @@ def api_reset():
 def api_clear_db():
     if DB_PATH.exists():
         DB_PATH.unlink()
-    init_db()
+    # init_db()
     return jsonify({"ok": True})
 
 
 def bootstrap() -> None:
-    init_db()
+    # init_db()
     with closing(get_db()) as conn:
         fetch_city_boundaries()
         seed_minimum_metric_history(conn)
