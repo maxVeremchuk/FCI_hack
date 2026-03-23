@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vision One Million Scorecard Ops</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" crossorigin="" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-badge">V1M</div>
+        <div>
+          <div class="eyebrow">Hackathon prototype</div>
+          <h1>Vision One Million Live Ops</h1>
+        </div>
+      </div>
+      <p class="sidebar-copy">
+        Live source-linked dashboard for Waterloo Region. By default the map shows city borders and city scores. Draw a rectangle to recompute metrics for a selected area.
+      </p>
+
+      <div class="sidebar-actions">
+        <button class="primary" id="runBtn">Run live scraping</button>
+        <button class="ghost" id="clearSelectionBtn">Whole area</button>
+      </div>
+
+      <div class="status-card">
+        <div class="status-title">Run status</div>
+        <div id="runStatusText">Idle</div>
+      </div>
+
+      <div class="side-section">
+        <div class="section-label">Layers</div>
+        <div class="layer-buttons">
+          <button class="layer-btn active" data-layer="housing">Housing</button>
+          <button class="layer-btn" data-layer="transportation">Transportation</button>
+          <button class="layer-btn" data-layer="healthcare">Healthcare</button>
+          <button class="layer-btn" data-layer="employment">Employment</button>
+          <button class="layer-btn" data-layer="placemaking">Placemaking</button>
+        </div>
+        <div class="divider"></div>
+        <label class="section-label" for="subLayerSelect">Sub-layer</label>
+        <select id="subLayerSelect" class="sub-layer-select"></select>
+      </div>
+
+      <div class="side-section">
+        <div class="section-label">Live scraping window</div>
+        <div class="log-window" id="logWindow"></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="hero">
+        <div>
+          <div class="eyebrow">Selection</div>
+          <h2 id="heroTitle">Whole Waterloo Region</h2>
+          <p id="heroCopy" class="muted">City borders are shown by default. Use the draw tool on the map to select an area and recompute metrics for that rectangle.</p>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat hero-stat-ring-wrap">
+            <span>Overall score</span>
+            <div id="overallScoreRing" class="score-ring score-ring-lg" style="--fill:0deg"><span id="overallScore">—</span></div>
+          </div>
+          <div class="hero-stat">
+            <span>Layer</span>
+            <strong id="activeLayerLabel">Transportation</strong>
+          </div>
+        </div>
+      </section>
+
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="maps">Maps</button>
+        <button class="tab-btn" data-tab="plots">Plots</button>
+        <button class="tab-btn" data-tab="formulas">Formulas</button>
+        <button class="tab-btn" data-tab="sources">Sources</button>
+        <button class="tab-btn" data-tab="alerts">Alerts</button>
+        <button class="tab-btn" data-tab="data-catalog">Data catalog</button>
+        <button class="tab-btn" data-tab="docs">Documentation</button>
+      </nav>
+
+      <section class="tab-panel active" data-tab="maps">
+        <div class="grid two-col map-grid">
+          <div class="panel large-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Interactive map</h3>
+                <p>City borders are drawn from boundary data. Transport lines, AADT traffic roads, hospital access, live rental offers, and amenities are clickable overlays. Draw a rectangle to recompute the score for that area.</p>
+              </div>
+              <div id="mapLegend" class="legend"></div>
+            </div>
+            <div id="map"></div>
+          </div>
+          <div class="panel side-panel">
+            <div class="panel-head compact">
+              <div>
+                <h3>City scorecards</h3>
+                <p>These are the default city-level scores shown on the map.</p>
+              </div>
+            </div>
+            <div id="cityCards" class="city-cards"></div>
+            <div class="divider"></div>
+            <div class="panel-head compact">
+              <div>
+                <h3>Selected area metrics</h3>
+                <p id="selectionMeta">Whole Waterloo Region.</p>
+              </div>
+            </div>
+            <div id="scoreCards" class="score-cards"></div>
+            <div class="divider"></div>
+            <div id="regionMetrics" class="detail-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab="plots">
+        <div class="grid two-col">
+          <div class="panel large-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Historical plots</h3>
+                <p>Select a metric and date interval. The chart filters correctly by date and uses stored snapshots from live runs.</p>
+              </div>
+              <div class="toolbar wrap">
+                <select id="plotMetricSelect"></select>
+                <select id="plotRegionSelect">
+                  <option value="whole">Whole region</option>
+                  <option value="city:Kitchener">Kitchener</option>
+                  <option value="city:Waterloo">Waterloo</option>
+                  <option value="city:Cambridge">Cambridge</option>
+                </select>
+                <input type="date" id="plotStart" />
+                <input type="date" id="plotEnd" />
+                <button class="ghost small" id="plotRefreshBtn">Refresh</button>
+              </div>
+            </div>
+            <div id="plotFallbackNote" class="muted small plot-note"></div>
+            <canvas id="mainChart"></canvas>
+          </div>
+          <div class="panel side-panel">
+            <div class="panel-head compact">
+              <div>
+                <h3>Submetrics</h3>
+                <p>Click a row to use it in the plot.</p>
+              </div>
+            </div>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                    <th>Score</th>
+                    <th>Sources</th>
+                  </tr>
+                </thead>
+                <tbody id="metricRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab="formulas">
+        <div class="grid two-col">
+          <div class="panel large-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Formula builder</h3>
+                <p>Drag variables and operators into the expression area, or edit directly. This makes it visible what is being multiplied, divided and combined.</p>
+              </div>
+            </div>
+            <div id="formulaList" class="formula-list"></div>
+          </div>
+          <div class="panel side-panel">
+            <div class="panel-head compact">
+              <div>
+                <h3>Weights</h3>
+                <p>Change sector and metric weights; the total score updates after the next refresh.</p>
+              </div>
+            </div>
+            <div id="weightEditor"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab="sources">
+        <div class="grid two-col">
+          <div class="panel large-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Source registry</h3>
+                <p>Disable, remove, or add sources. Hover the preview badge to see a short source preview.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Source</th>
+                    <th>Sector</th>
+                    <th>Method</th>
+                    <th>Frequency</th>
+                    <th>LLM</th>
+                    <th>Enabled</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="sourceRows"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel side-panel">
+            <div class="panel-head compact">
+              <div>
+                <h3>Add source</h3>
+                <p>Use Gemini only for document or image-like sources. Keep APIs and feeds deterministic.</p>
+              </div>
+            </div>
+            <form id="sourceForm" class="stack-form">
+              <input name="name" placeholder="Source name" required />
+              <select name="sector">
+                <option>Housing</option>
+                <option>Transportation</option>
+                <option>Healthcare</option>
+                <option>Employment</option>
+                <option>Placemaking</option>
+              </select>
+              <input name="source_url" placeholder="https://..." required />
+              <div class="two-up">
+                <select name="access_method">
+                  <option value="html">html</option>
+                  <option value="api">api</option>
+                  <option value="pdf">pdf</option>
+                  <option value="gtfs">gtfs</option>
+                  <option value="json">json</option>
+                </select>
+                <select name="update_frequency">
+                  <option>hourly</option>
+                  <option>daily</option>
+                  <option selected>weekly</option>
+                  <option>monthly</option>
+                  <option>quarterly</option>
+                  <option>annual</option>
+                </select>
+              </div>
+              <label class="checkbox-row"><input type="checkbox" name="use_llm" /> Use Gemini parsing</label>
+              <textarea name="notes" rows="4" placeholder="What should this source provide?"></textarea>
+              <button class="primary" type="submit">Add source</button>
+            </form>
+            <div class="divider"></div>
+            <div class="panel-head compact">
+              <div>
+                <h3>Latest Gemini extractions</h3>
+              </div>
+            </div>
+            <div id="llmList" class="llm-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab="alerts">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Alerts and review queue</h3>
+              <p>Maintainers are notified when new data is available, metrics move sharply, or anomalies are detected. One demo anomaly is always added for testing.</p>
+            </div>
+          </div>
+          <div id="alertsList" class="alerts-list"></div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab="data-catalog">
+        <div class="panel data-catalog-panel">
+          <div class="panel-head">
+            <div>
+              <h3>Data catalog</h3>
+              <p>What the scorecard includes, how fresh cached extracts are, and how layers are built. Use <strong>Run live scraping</strong> to refresh.</p>
+            </div>
+          </div>
+          <div id="dataCatalogBody" class="data-catalog-body muted">Loading…</div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab="docs">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Audit and documentation</h3>
+              <p>Per-source previews from the registry (same rows as the Sources tab).</p>
+            </div>
+          </div>
+          <div id="docsList" class="docs-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
